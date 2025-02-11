@@ -12,7 +12,7 @@ This repository contains multiple Nextflow-based pipelines for adaptive immune r
 
 - **Description**: Annotates T cell receptor beta (TRB) sequences, infers genotypes, and generates OGRDB stats reports.
 - **Path**: `airrseq_annotation_pipelines/pipelines/Human_TRB_Annotation/`
-- **Usage**: See the [TRB Annotation Pipeline README](airrseq_annotation_pipelines/pipelines/Human_TRB_Annotation/README.md) for details.
+- **Usage**: See the [TRB Annotation Pipeline README](https://github.com/ayeletperes/airrseq_annotation_pipelines/blob/main/pipelines/Human_TRB_Annotation/README.md) for details.
 
 ---
 
