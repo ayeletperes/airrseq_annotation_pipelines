@@ -1,8 +1,5 @@
 
 
-params.reads = ""
-params.reference_dir = ""
-
 if (!params.reads || !params.reference_dir) {
     throw new IllegalArgumentException("Both 'reads' and 'reference_dir' parameters must be supplied.")
 }
