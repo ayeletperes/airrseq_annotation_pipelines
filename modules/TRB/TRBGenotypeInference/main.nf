@@ -1,23 +1,22 @@
 process TRBGenotypeInference {
+    tag "TRBGenotypeInference_${sample_id}"
+
     input:
-        path reads
+        tuple val(sample_id), path(annotations)
         path v_reference
         path d_reference
         path j_reference
         val min_consensus_count
 
     output:
-        path "v_genotype.tsv", emit: v_genotypes optional true
-        path "d_genotype.tsv", emit: d_genotypes optional true
-        path "j_genotype.tsv", emit: j_genotypes optional true
-        path "v_personal.fasta", emit: v_reference optional true
-        path "d_personal.fasta", emit: d_reference optional true
-        path "j_personal.fasta", emit: j_reference optional true
+        tuple val(sample_id), path("${sample_id}_v_genotype.tsv"), path("${sample_id}_d_genotype.tsv"), path("${sample_id}_j_genotype.tsv"), path("${sample_id}_v_personal.fasta"), path("${sample_id}_d_personal.fasta"), path("${sample_id}_j_personal.fasta"), emit: genotypes
 
     script:
 		
         """
-        Rscript "/mnt/bin/rscripts/TRB/TRBGenotypeInference.R" -m ${reads} \
+        Rscript "/mnt/bin/rscripts/TRB/TRBGenotypeInference.R" \
+        -i ${sample_id} \
+        -m ${annotations} \
         -v ${v_reference} \
         -d ${d_reference} \
         -j ${j_reference} \

@@ -4,9 +4,7 @@
 
 The **Human TRB Annotation Pipeline** is a Nextflow-based workflow designed for **T cell receptor beta (TRB) annotation and genotype inference**. It processes **FASTA files**, infers genotypes, and OGRDB stats reports.
 
----
-
-## Required Docker / Singularity Images
+## Required Docker Images
 
 Before running the pipeline, pull the necessary containers:
 
@@ -15,92 +13,99 @@ docker pull peresay/base:latest
 docker pull williamlees/ogrdbstats:latest
 ```
 
-Note: it is not necesseray to pre-pull the singularity images, the pipeline will automatically pull them
-
-```bash
-singularity pull docker://peresay/base:latest
-singularity pull docker://williamlees/ogrdbstats:latest
-```
-
----
-
-## Execution Profiles
-
-The pipeline supports multiple execution profiles:
-
-### `docker` Profile
-
-- Uses **Docker** to manage dependencies and runs on **local** executer
-- Requires to manually pull the docker containers
-
-### `singularity` Profile
-
-- Uses **Singularity** instead of Docker and runs on **local** executer
-- Automatically pulls containers if not available
-
-### `singularityHPC` Profile
-
-- Runs on **SLURM** clusters with Singularity
-- Automatically pulls containers if not available
-
----
-
 ## Running the Pipeline
 
-### **1. Organize Input Data**
+### 1. Organize Input Data
 
 Ensure your **FASTA input files** are in the correct directory. Example:
 
 ```plaintext
 project_root/
-├── airrseq_annotation_pipelines/
-│   ├── pipelines/
-│   │   ├── TRB_Annotation_Pipeline/
-│   │   │   ├── main.nf
-│   │   │   ├── nextflow.config
-│   ├── modules/
-│   ├── bin/
-├── input/
-│   ├── C4.fasta
+├── data/
+│   ├── sample1.fasta
+│   ├── sample2.fasta
+│   ├── sample3.fasta
 ```
 
-### **2. Run the Pipeline with a Single File**
+### 2. Run the Pipeline
 
-1. Create a directory for the work and results
+#### Option 1: Multiple Samples from a Directory
 
-    ```bash
-    sample_dir="C4"
-    mkdir -p $sample_dir
-    ```
+Process all FASTA files in a directory:
 
-2. Move to the working directory to ensure cache location
+```bash
+cpus=16 # Number of CPUs for nextflow to use
+ncors=16 # Number of cores for IgBlast
+nextflow -log logs/nextflow.log run /path/to/nextflow_demo/airrseq_annotation_pipelines/pipelines/Human_TRB_Annotation/main.nf \
+  -profile docker,human_trb \
+  -process.cpus ${cpus} \ 
+  -w work \
+  --outdir results \
+  --ncors ${ncors} \ 
+  --samples '/path/to/data/*.fasta'
+```
 
-    ```bash
-    cd $sample_dir
-    ```
+#### Option 2: Multiple Samples from a CSV File
 
-3. Run analysis
+Create a CSV file with sample information:
 
-    ```bash
-    reads="../C4.fasta" # AIRR-seq file
-    sample_name="C4" # Sample name
-    log_file=logs/nextflow.log # log file location. Optional
-    reference_dir="../TRB/rev1/" # Path to reference directory
-    work_dir=work # Processing directory name
-    profile=singularity # Specify the execution profile
-    nextflow -log $log_file run ../airrseq_annotation_pipelines/pipelines/Human_TRB_Annotation/main.nf \
-        -w $work_dir \
-        --reference_dir $reference_dir \
-        --sample_name $sample_name \
-        --reads $reads \
-        -profile $profile
-    ```
+```plaintext
+sample_id,file
+CI10_PRJEB28370_TRB,/path/to/data/CI10_PRJEB28370_TRB.fasta
+CI11_PRJEB28370_TRB,/path/to/data/CI11_PRJEB28370_TRB.fasta
+```
 
----
+Then run:
+
+```bash
+cpus=16 # Number of CPUs for nextflow to use
+ncors=16 # Number of cores for IgBlast
+nextflow -log logs/nextflow.log run /path/to/nextflow_demo/airrseq_annotation_pipelines/pipelines/Human_TRB_Annotation/main.nf \
+  -profile docker,human_trb \
+  -process.cpus ${cpus} \ 
+  -w work \
+  --outdir results \
+  --ncors ${ncors} \ 
+  --input_csv samples.csv
+```
+
+#### Option 3: Single Sample
+
+Process a single FASTA file:
+
+```bash
+cpus=16 # Total CPUs available to Nextflow
+ncors=16 # Number of cores for processes
+nextflow -log logs/nextflow.log run /path/to/nextflow_demo/airrseq_annotation_pipelines/pipelines/Human_TRB_Annotation/main.nf \
+  -profile docker,human_trb \
+  -process.cpus ${cpus} \ 
+  -w work \
+  --outdir results \
+  --ncors ${ncors} \ 
+  --fasta /path/to/data/sample.fasta
+```
+
+## Pipeline Features
+
+### Low Depth Sample Filtering
+
+The pipeline can automatically filter out samples with insufficient sequencing depth:
+
+- Enable with `--check_low_depth` true (enabled by default)
+- Set minimum threshold with `--check_low_depth_threshold` 100
+- Samples below the threshold will be excluded from analysis with a warning message
+
+### Genotype Inference Parameters
+
+Customize genotype inference with:
+
+```bash
+--genotype.min_consensus_count 1  # Minimum consensus count for genotype inference
+```
 
 ## Expected Output
 
-Results are saved in the `results/` directory and include:
+Results are saved in the specified `--outdir` directory (default: `results/`) and include:
 
 | File Path                                      | Description                                      |
 |------------------------------------------------|--------------------------------------------------|
@@ -109,60 +114,46 @@ Results are saved in the `results/` directory and include:
 | `ogrdbstats/*_ogrdb_report.tsv`                | OGRDB statistics reports                         |
 | `ogrdbstats/*_ogrdb_plots.tsv`                 | OGRDB statistics plots                           |
 
----
+## Available Profiles
+
+The pipeline includes several profiles:
+
+- human_trb: Sets the reference directory for human TRB analysis
+- docker: Runs the pipeline using Docker containers
+- singularity: Runs the pipeline using Singularity containers
+- singularityHPC: Runs the pipeline using Singularity on HPC with SLURM
 
 ## Debugging & Logs
 
 To check logs:
 
 ```bash
-nextflow log test/nextflow.log
+cat logs/nextflow.log
 ```
 
-For debugging input files:
+For more detailed execution information:
 
-```nextflow
-println "Params.reads: ${params.reads}"
-println "Processed Reads: ${reads}"
+```bash
+nextflow log
 ```
 
----
+## Resource Configuration
 
-## Configuration Parameters
+Adjust computational resources:
 
-The pipeline supports configurable parameters, defined in `nextflow.config`. Below are the key parameters:
+```bash
+--ncors 10           # Number of cores for processes
+-process.cpus 50     # Total CPUs available to Nextflow
+```
 
-### General Parameters
+## Reference Data
 
-- **`outdir`**: Output directory (default: `results`)
-- **`ncors`**: Number of CPU threads to use (default: `4`)
+The pipeline requires reference data for TRB annotation:
 
-### IgBlastn Parameters
+- V_gapped.fasta
+- D.fasta
+- J.fasta
+- human_gl.aux
+- human.ndm
 
-- **`num_threads`**: Number of CPU threads to use (default: `params.ncors`)
-- **`outfmt`**: Output format (default: `MakeDb`)
-- **`num_alignments_V`**: Maximum V calls (default: `10`)
-- **`domain_system`**: Domain annotation system (default: `imgt`)
-- **`ig_seqtype`**: Sequence type (default: `TCR`)
-- **`d_penalty`**: D alignment penalty (default: `-2`)
-
-### MakeDb Parameters
-
-- **`failed`**: Output failed sequences (`false` by default)
-- **`format`**: Output format (`airr` by default)
-- **`regions`**: Annotation regions (`default` by default)
-- **`extended`**: Use extended annotation (`true` by default)
-- **`asisid`**: Use original sequence ID (`false` by default)
-- **`asiscalls`**: Use original calls (`false` by default)
-- **`inferjunction`**: Infer junctions (`false` by default)
-- **`partial`**: Include partial alignment results (`false` by default)
-
-### Genotype Inference Parameters
-
-- **`min_consensus_count`**: Minimum consensus count for sequence inclusion (`1` by default)
-
-### OGRDB Stats Parameters
-
-- **`chain`**: TCR chain type (`TRBV` by default)
-
----
+These are automatically set when using the human_trb profile.

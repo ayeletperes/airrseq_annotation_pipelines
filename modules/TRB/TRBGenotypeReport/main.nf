@@ -1,22 +1,21 @@
 process TRBGenotypeReport {
-    publishDir params.outdir, mode: 'copy', saveAs: {filename -> if (filename =~ /${name}_genotype.*$/) "genotype/$filename"}
+    tag "TRBGenotypeReport_${sample_id}"
 
+    publishDir "${params.outdir}/${sample_id}/genotype", mode: 'copy'
+    
     input:
-        path reads
-        path v_genotype
-        path d_genotype
-        path j_genotype
+        tuple val(sample_id), path(annotations), path(v_genotype), path(d_genotype), path(j_genotype)
 
     output:
-        path "*_genotype.tsv", emit: genotypes optional true
+        path "*_genotype.tsv", emit: genotypes, optional: true
 
     script:
-        name = params.sample_name
+
         """
-        Rscript "/mnt/bin/rscripts/TRB/TRBGenotypeReport.R" -m ${reads} \
+        Rscript "/mnt/bin/rscripts/TRB/TRBGenotypeReport.R" -m ${annotations} \
         -v ${v_genotype} \
         -d ${d_genotype} \
         -j ${j_genotype} \
-        -o ${name}
+        -o ${sample_id}
         """
 }

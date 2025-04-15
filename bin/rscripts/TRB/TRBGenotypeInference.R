@@ -4,8 +4,8 @@
 suppressMessages(library(piglet))
 suppressMessages(library(tigger))
 suppressMessages(library(dplyr))
-library(stringr)
-library(optparse)
+suppressMessages(library(stringr))
+suppressMessages(library(optparse))
 
 undocumented_alleles_2_ignore <- c("TRBV13*01_A170T", "TRBV13*01_T158C", "TRBV10-3*02_C225G", "TRBV20-1*01_C142A", "TRBV30*01_A113C", "TRBV6-6*01_C261T",
                                    "TRBV7-9*05_A19G_C256T",
@@ -23,6 +23,7 @@ undocumented_alleles_2_ignore <- c("TRBV13*01_A170T", "TRBV13*01_T158C", "TRBV10
 
 # Define command-line arguments
 option_list <- list(
+  make_option(c("-i", "--sample_id"), type="character", help="Sample name", metavar="STRING"),
   make_option(c("-m", "--makedb_file"), type="character", help="Path to the makedb file (input TSV)", metavar="FILE"),
   make_option(c("-v", "--v_germline"), type="character", help="Path to the V germline FASTA file", metavar="FILE"),
   make_option(c("-d", "--d_germline"), type="character", help="Path to the D germline FASTA file", metavar="FILE"),
@@ -41,6 +42,7 @@ if (is.null(opt$makedb_file) || is.null(opt$v_germline) || is.null(opt$d_germlin
 }
 
 # Assign variables
+sample_id <- opt$sample_id
 makedb_file <- opt$makedb_file
 v_germline_file <- opt$v_germline
 d_germline_file <- opt$d_germline
@@ -116,12 +118,14 @@ D2_total <- nrow(DATA_D_geno[grepl("TRBD2", DATA_D_geno[["d_call"]]), ])
 D2_01_count <- nrow(DATA_D_geno[DATA_D_geno[["d_call"]] == "TRBD2*01", ])
 D2_01_freq <- D2_01_count / D2_total
 
-if (D2_01_freq < 0.2066) {
+if (!is.na(D2_01_freq) & D2_01_freq < 0.2066) {
   geno_BD[["genotyped_alleles"]][geno_BD[["gene"]] == "TRBD2"] <- "02"
-} else if (D2_01_freq > 0.8969) {
+} else if (!is.na(D2_01_freq) & D2_01_freq > 0.8969) {
   geno_BD[["genotyped_alleles"]][geno_BD[["gene"]] == "TRBD2"] <- "01"
-} else if (geno_BD[["genotyped_alleles"]][geno_BD[["gene"]] == "TRBD2"] == "01") {
-  geno_BD[["genotyped_alleles"]][geno_BD[["gene"]] == "TRBD2"] <- "01,02"
+} else if ("TRBD2" %in% geno_BD[["gene"]]) {
+  if(geno_BD[["genotyped_alleles"]][geno_BD[["gene"]] == "TRBD2"] == "01") {
+    geno_BD[["genotyped_alleles"]][geno_BD[["gene"]] == "TRBD2"] <- "01,02"
+  }
 }
 
 DATA_J_SA <- data[!grepl(pattern = ',', data[["j_call"]]), ]
@@ -172,12 +176,14 @@ for(i in seq_len(nrow(geno_BJ))){
 
 ## Combine the genotyped and others and write to a fasta file for reference
 
-writeFasta(TRBV_GERM.NEW, file = "v_personal.fasta")
-writeFasta(TRBD_GERM.NEW, file = "d_personal.fasta")
-writeFasta(TRBJ_GERM.NEW, file = "j_personal.fasta")
+outname <- function(suffix) sprintf("%s_%s", sample_id, suffix)
+
+writeFasta(TRBV_GERM.NEW, file = outname("v_personal.fasta"))
+writeFasta(TRBD_GERM.NEW, file = outname("d_personal.fasta"))
+writeFasta(TRBJ_GERM.NEW, file = outname("j_personal.fasta"))
 
 ## save the genotype data
-write.table(geno_BV, file = "v_genotype.tsv", quote = F, row.names = F, sep = "\t")
-write.table(geno_BD, file = "d_genotype.tsv", quote = F, row.names = F, sep = "\t")
-write.table(geno_BJ, file = "j_genotype.tsv", quote = F, row.names = F, sep = "\t")
+write.table(geno_BV, file = outname("v_genotype.tsv"), quote = F, row.names = F, sep = "\t")
+write.table(geno_BD, file = outname("d_genotype.tsv"), quote = F, row.names = F, sep = "\t")
+write.table(geno_BJ, file = outname("j_genotype.tsv"), quote = F, row.names = F, sep = "\t")
 # End of script
