@@ -51,22 +51,18 @@ geno_BV[["Freq_by_Seq"]] <- unlist(lapply(geno_BV[["gene"]], function(g) {
 }))
 
 d_table <- data[(!grepl(pattern = ',', data[["d_call"]]) & data[["d_call"]] != 'None') & (data[["d_sequence_end"]] - data[["d_sequence_start"]] >= 8), ]
-if(nrow(d_table) > 0) {
-  d_table <- d_table[complete.cases(d_table[["sequence_id"]]), ]
-  d_table <- d_table %>% dplyr::group_by(d_call) %>% dplyr::summarise(N = n())
-  d_table[["gene"]] <- sapply(strsplit(d_table[["d_call"]], "*", fixed = TRUE), "[", 1)
-  d_table[["allele"]] <- sapply(strsplit(d_table[["d_call"]], "*", fixed = TRUE), "[", 2)
-  geno_BD[["Freq_by_Seq"]] <- unlist(lapply(geno_BD[["gene"]], function(g) {
-    if (!g %in% d_table[["gene"]]) {
-      return("0")
-    }
-    counts <- d_table[["N"]][d_table[["gene"]] == g]
-    counts <- sort(counts, decreasing = TRUE)
-    return(paste(counts, collapse = ";"))
-  }))
-}else{
-  geno_BD[["Freq_by_Seq"]] <- "0"
-}
+d_table <- d_table[complete.cases(d_table[["sequence_id"]]), ]
+d_table <- d_table %>% dplyr::group_by(d_call) %>% dplyr::summarise(N = n())
+d_table[["gene"]] <- sapply(strsplit(d_table[["d_call"]], "*", fixed = TRUE), "[", 1)
+d_table[["allele"]] <- sapply(strsplit(d_table[["d_call"]], "*", fixed = TRUE), "[", 2)
+geno_BD[["Freq_by_Seq"]] <- unlist(lapply(geno_BD[["gene"]], function(g) {
+  if (!g %in% d_table[["gene"]]) {
+    return("0")
+  }
+  counts <- d_table[["N"]][d_table[["gene"]] == g]
+  counts <- sort(counts, decreasing = TRUE)
+  return(paste(counts, collapse = ";"))
+}))
 
 j_table <- data[!grepl(",", data[["j_call"]]), ]
 j_table <- j_table %>% dplyr::group_by(j_call) %>% dplyr::summarise(N = n())

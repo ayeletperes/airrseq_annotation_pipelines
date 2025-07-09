@@ -1,10 +1,14 @@
 include { MakeBlastDb as MakeBlastDbV; MakeBlastDb as MakeBlastDbD; MakeBlastDb as MakeBlastDbJ; MakeBlastDb as MakeBlastDbPersonalV; MakeBlastDb as MakeBlastDbPersonalD; MakeBlastDb as MakeBlastDbPersonalJ } from '../../modules/MakeBlastDB/main.nf'
+include { ShortenAllelesName as V_ShortenAllelesName; ShortenAllelesName as D_ShortenAllelesName; ShortenAllelesName as J_ShortenAllelesName} from '../../modules/Utils/ShortenAllelesName/main.nf'
+include { ReverseAllelesName as V_ReverseAllelesName; ReverseAllelesName as D_ReverseAllelesName; ReverseAllelesName as J_ReverseAllelesName} from '../../modules/Utils/ReverseAllelesName/main.nf'
 include { IgBlastn as InitialIgBlastn; IgBlastn as PersonalIgBlastn; } from '../../modules/Igblastn/main.nf'
 include { MakeDB as InitialMakeDb; MakeDB as PersonalMakeDb; } from '../../modules/MakeDB/main.nf'
 include { TRBCollapseSeq } from '../../modules/TRB/TRBCollapseSeq/main.nf'
 include { TRBGenotypeInference } from '../../modules/TRB/TRBGenotypeInference/main.nf'
 include { TRBGenotypeReport } from '../../modules/TRB/TRBGenotypeReport/main.nf'
 include { OGRDBStatsReport } from '../../modules/ogrdb/main.nf'
+include { makeNdm } from '../../modules/makeNdm/main.nf'
+include { IgBlastAlignmentWorkflow as InitialAlignment; IgBlastAlignmentWorkflow as PersonalAlignment} from '../../modules/IG/IgBlastAlignmentWorkflow/main.nf'
 
 // Assign reference paths
 params.reference = [
@@ -44,39 +48,27 @@ workflow {
         }
     }
 
-    // create igblast reference
-    v_reference_ch = sample_files.map { it -> tuple(it[0], v_reference) }
-    d_reference_ch = sample_files.map { it -> tuple(it[0], d_reference) }
-    j_reference_ch = sample_files.map { it -> tuple(it[0], j_reference) }
-
-    db_v_path = MakeBlastDbV(v_reference_ch, 'V')
-    db_d_path = MakeBlastDbD(d_reference_ch, 'D')
-    db_j_path = MakeBlastDbJ(j_reference_ch, 'J')
-    
     sample_files
-    .join(db_v_path, by: 0)
-    .join(db_d_path, by: 0)
-    .join(db_j_path, by: 0)
-    .map { sample_id, sample_file, v_db, d_db, j_db ->
-        tuple(sample_id, sample_file, v_db, d_db, j_db)
-    }
-    .set { igblast_input }
+            .map { it -> tuple(it[0], it[1], v_reference, d_reference, j_reference) }
+            .set { alignment_input }
 
-    // Run IgBlast
-    InitialIgBlastn(
-        igblast_input,
-        aux_file,
-        ndm_file,
-        '_first'
-    ).set { igblast_out_raw }
+    suffix = "_first"
 
-    // Run MakeDB
-    sample_files.join(igblast_out_raw).map { it -> tuple(it[0], it[1], it[2], [v_reference, d_reference, j_reference]) }.set{ makedb_input }
+    InitialAlignment(
+            alignment_input, // (sid, reads, v_ref, d_ref, j_ref)
+            aux_file,
+            ndm_file,
+            "_first",
+            false).set { init_align_raw }
 
-    InitialMakeDb(makedb_input, '_first', false).set { makedb_out_raw }
+    init_align_raw.map { sid, ann, _v, _d, _j -> tuple(sid, ann) }
+                      .set { ann_init }     // (sid, ann)
+
+    init_align_raw.map { sid, _ann, v, d, j -> tuple(sid, v, d, j) }
+                      .set { ref_init }     // (sid, v, d, j)
 
     // Run Collapse
-    TRBCollapseSeq(makedb_out_raw.annotations, v_reference).set { collapse_out_raw }
+    TRBCollapseSeq(ann_init, v_reference, 3).set { collapse_out_raw }
 
 
     // Check for low depth samples if enabled
@@ -115,18 +107,20 @@ workflow {
         collapse_out_collapsed_fasta = collapse_out_raw.collapsed_fasta
     }
 
+
     // Run Genotype
     TRBGenotypeInference(
         collapse_out_annotations,
         v_reference,
         d_reference,
         j_reference,
-        params.genotype.min_consensus_count
+        params.genotype.min_consensus_count,
+        params.genotype.max_snp_position
     ).set { genotype_out }
 
     // Create Genotype Report
     genotype_out.map { it -> tuple(it[0], it[1], it[2], it[3]) }.set { genotypes }
-    makedb_out_raw.annotations.join(genotypes).set{ genotype_report_input }
+    ann_init.join(genotypes).set{ genotype_report_input }
     TRBGenotypeReport(genotype_report_input)
 
     // Create personal reference

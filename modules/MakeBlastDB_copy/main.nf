@@ -11,7 +11,7 @@ process MakeBlastDb {
     script:
         ddb = "${sample_id}_${prefix}.db"
         """
-        sed -e '/^>/! s/[.]//g' ${reference_file} > ${sample_id}_${prefix}_germline.fasta
+        sed -e '/^>/! s/[.-]//g' ${reference_file} > ${sample_id}_${prefix}_germline.fasta
         touch ${ddb}
         makeblastdb -parse_seqids -dbtype nucl -in ${sample_id}_${prefix}_germline.fasta -out ${ddb}
         """
