@@ -170,7 +170,7 @@ workflow {
     //     .set { personal_ogrdb_input }
 
     personal_makedb_out.annotations
-        .map { it -> tuple(sample_id, annotations, [v_reference, d_reference, j_reference]) }
+        .map { it -> tuple(it[0], it[1], [v_reference, d_reference, j_reference]) }
         .set { personal_ogrdb_input }
 
 
