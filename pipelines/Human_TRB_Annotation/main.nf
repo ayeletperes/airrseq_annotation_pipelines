@@ -162,12 +162,17 @@ workflow {
     PersonalMakeDb(personal_makedb_input, '_personal', true).set { personal_makedb_out }
 
     // Create OGRDB report
+    // personal_makedb_out.annotations
+    // .join(v_reference_ch).join(d_reference_ch).join(j_reference_ch)
+    //     .map { sample_id, annotations, v_file, d_file, j_file ->
+    //         tuple(sample_id, annotations, [v_file, d_file, j_file])
+    //     }
+    //     .set { personal_ogrdb_input }
+
     personal_makedb_out.annotations
-    .join(v_reference_ch).join(d_reference_ch).join(j_reference_ch)
-        .map { sample_id, annotations, v_file, d_file, j_file ->
-            tuple(sample_id, annotations, [v_file, d_file, j_file])
-        }
+        .map { it -> tuple(sample_id, annotations, [v_reference, d_reference, j_reference]) }
         .set { personal_ogrdb_input }
+
 
     OGRDBStatsReport(personal_ogrdb_input, "")
 }
