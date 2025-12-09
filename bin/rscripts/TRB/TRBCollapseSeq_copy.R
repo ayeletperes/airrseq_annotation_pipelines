@@ -48,13 +48,12 @@ data[["v_mut"]] <- sapply(seq_len(nrow(data)), function(i) {
   allele <- data[["v_call_single"]][i]
   idx <- mutations[[i]]
   v_min <- min(data[["v_start"]][grep(allele, data[["v_call"]], fixed = TRUE)]) + 5
-  length(idx > v_min & idx <= 316)
+  sum(idx > v_min & idx <= 316)
 })
-print(num_mutation)
+
 
 # Filter out sequences with mutations in the V region
 data <- data[data$v_mut <= as.numeric(num_mutation), ]
-table(data$v_mut)
 
 # Collapse identical sequences
 if (!"consensus_count" %in% names(data)) {
